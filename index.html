@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>منصة الأصول الوقفية | مؤسسة تكافل الوقفية</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- خط بديل قريب من DIN يعمل مجاناً. لاستخدام DIN الأصلي: ضع ملفات الخط وفعّل @font-face أدناه -->
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Barlow:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+/* @font-face{font-family:"DIN";font-weight:300;src:url(fonts/DIN-Light.woff2)} …إلخ لكل الأوزان */
+:root{--teal:#00909a;--teal-d:#006f77;--teal-l:#e3f3f4;--gold:#e4a22f;--ink:#2d3436;--grey:#efefef;--mut:#6b7678;--card:#fff;
+--f:"DIN Next Arabic","DIN Next LT Arabic","DIN","Barlow","IBM Plex Sans Arabic",system-ui,sans-serif}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%;font-family:var(--f);color:var(--ink);background:#dfe8e9;overflow:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+#map{position:fixed;inset:0;z-index:1}
+.leaflet-container{font-family:var(--f);background:#dfe8e9}
+/* top bar */
+.top{position:fixed;z-index:500;top:max(12px,env(safe-area-inset-top));inset-inline:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;pointer-events:none}
+.top>*{pointer-events:auto}
+.brand{display:flex;gap:10px;align-items:center;background:var(--teal);color:#fff;padding:8px 16px 8px 20px;border-radius:0 28px 28px 0;box-shadow:0 6px 24px #00585f55}
+.brand svg{width:34px;height:34px}.brand b{font-weight:700;font-size:17px;line-height:1.1;display:block}.brand small{font-weight:300;font-size:11px;opacity:.85}
+.chips{display:flex;gap:6px;background:#ffffffeb;backdrop-filter:blur(10px);padding:5px;border-radius:30px;box-shadow:0 6px 24px #0002}
+.chip{padding:7px 14px;border-radius:24px;font-weight:500;font-size:14px;display:flex;gap:7px;align-items:center;transition:.2s}
+.chip i{width:10px;height:10px;border-radius:50%;display:inline-block}
+.chip[aria-pressed=true]{background:var(--teal);color:#fff}
+.chip em{font-style:normal;font-weight:700;opacity:.75;font-size:12px}
+/* stats */
+.stats{position:fixed;z-index:500;inset-inline-start:12px;bottom:84px;display:flex;flex-direction:column;gap:8px}
+.stat{background:#fffffff2;backdrop-filter:blur(10px);border-radius:16px;padding:10px 16px;min-width:130px;box-shadow:0 6px 20px #0002;border-inline-start:4px solid var(--gold)}
+.stat b{font-size:26px;font-weight:700;color:var(--teal);display:block;line-height:1.1}.stat span{font-size:12px;color:var(--mut);font-weight:400}
+/* dock */
+.dock{position:fixed;z-index:500;bottom:max(14px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);display:flex;gap:4px;background:#00323ae6;backdrop-filter:blur(12px);padding:6px;border-radius:30px;box-shadow:0 10px 30px #0004;max-width:96vw;overflow-x:auto}
+.dock button{color:#fff;padding:10px 18px;border-radius:24px;font-weight:500;font-size:14px;white-space:nowrap;transition:.2s}
+.dock button:hover{background:#ffffff22}.dock button.on{background:var(--gold);color:#2b1d00}
+/* markers */
+.mk{position:relative;width:46px;height:56px;filter:drop-shadow(0 5px 6px #0005);transition:transform .2s}
+.mk:hover{transform:translateY(-4px) scale(1.08)}
+.mk svg{width:100%;height:100%}
+.mk .n{position:absolute;top:9px;inset-inline:0;text-align:center;color:#fff;font-weight:800;font-size:16px;font-family:"Barlow",var(--f)}
+.mk.land .n{color:#7a5200}
+.mk.land::after,.mk.build::after{content:"";position:absolute;left:50%;top:21px;width:30px;height:30px;margin:-15px;border-radius:50%;border:2px solid var(--gold);animation:pl 2.2s infinite;pointer-events:none}
+.mk.build::after{border-color:var(--teal)}.mk.cons::after{display:none}
+@keyframes pl{0%{transform:scale(.6);opacity:.9}100%{transform:scale(2.2);opacity:0}}
+.mkl{position:absolute;top:56px;left:50%;transform:translateX(-50%);background:#fff;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:600;white-space:nowrap;box-shadow:0 2px 6px #0003}
+.mk.land .mkl{background:var(--gold);color:#2b1d00}
+.leaflet-control-layers,.leaflet-bar a{border-radius:12px!important}
+/* side panel */
+.panel{position:fixed;z-index:700;top:0;bottom:0;inset-inline-end:0;width:min(440px,100vw);background:var(--card);box-shadow:-10px 0 40px #0003;transform:translateX(-110%);transition:transform .45s cubic-bezier(.2,.8,.2,1);overflow-y:auto;overscroll-behavior:contain}
+html[dir=rtl] .panel{transform:translateX(110%)}
+.panel.open{transform:none!important}
+.hero{position:relative;height:250px;background:var(--teal);overflow:hidden}
+.hero .sl{display:flex;height:100%;transition:transform .4s}
+.hero img{min-width:100%;height:100%;object-fit:cover}
+.hero:after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,#00282dd9,transparent 60%);pointer-events:none}
+.hero .t{position:absolute;z-index:2;bottom:14px;inset-inline:18px;color:#fff}
+.hero h2{font-size:26px;font-weight:700}.hero p{font-weight:300;font-size:14px}
+.x{position:absolute;z-index:3;top:12px;inset-inline-start:12px;width:38px;height:38px;border-radius:50%;background:#fffffff0;font-size:20px;font-weight:700}
+.dots{position:absolute;z-index:3;top:20px;inset-inline-end:14px;display:flex;gap:5px}
+.dots button{width:9px;height:9px;border-radius:50%;background:#fff8}.dots button.on{background:var(--gold);width:22px;border-radius:5px}
+.bd{padding:18px}
+.tag{display:inline-block;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;color:#fff}
+.tag.build{background:var(--teal)}.tag.cons{background:#c9831a}.tag.land{background:var(--gold);color:#2b1d00}
+.sec{margin-top:18px}.sec h3{font-size:14px;font-weight:600;color:var(--teal);margin-bottom:8px;display:flex;gap:8px;align-items:center}
+.sec h3:after{content:"";flex:1;height:1px;background:var(--grey)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.kv{background:var(--grey);border-radius:12px;padding:10px 12px}.kv span{display:block;font-size:11px;color:var(--mut);font-weight:400}.kv b{font-size:16px;font-weight:600}
+.about{line-height:1.8;font-size:15px;font-weight:400}
+.occ{display:flex;gap:16px;align-items:center}
+.ring{position:relative;width:104px;height:104px;flex:none}.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring b{position:absolute;inset:0;display:grid;place-items:center;font-size:24px;font-weight:700;color:var(--teal)}
+.units{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.u{width:22px;height:22px;border-radius:5px;background:var(--teal)}.u.v{background:#fff;border:2px dashed var(--gold)}
+.lg{font-size:12px;display:flex;gap:12px;margin-top:6px;color:var(--mut)}.lg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-inline-end:4px}
+.note{background:#fff7e6;border-inline-start:4px solid var(--gold);padding:10px 12px;border-radius:8px;font-size:14px;line-height:1.7}
+.promo{background:linear-gradient(135deg,var(--gold),#f0bb55);color:#2b1d00;border-radius:16px;padding:16px}
+.promo h4{font-size:18px;font-weight:700}.promo p{font-size:14px;line-height:1.7;margin:6px 0 10px}
+.btn{background:var(--teal);color:#fff;padding:10px 18px;border-radius:24px;font-weight:600;font-size:14px;display:inline-block}
+.btn.g{background:var(--grey);color:var(--ink)}.btn.d{background:#2b1d00;color:#fff}
+.demo{font-size:11px;color:var(--mut);margin-top:16px}
+/* views */
+.view{position:fixed;z-index:650;inset:0;background:#f7fafa;overflow-y:auto;display:none;padding:90px 18px 100px}
+.view.open{display:block;animation:fi .35s}
+@keyframes fi{from{opacity:0;transform:translateY(20px)}}
+.wrap{max-width:1000px;margin:auto}
+.view h1{font-size:32px;font-weight:700;color:var(--teal);margin-bottom:4px}.view .sub{color:var(--mut);margin-bottom:20px;font-weight:300}
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 4px 18px #0001;font-size:14px}
+th{background:var(--teal);color:#fff;font-weight:600;padding:12px 10px;text-align:start;white-space:nowrap}
+td{padding:11px 10px;border-bottom:1px solid var(--grey)}tbody tr{cursor:pointer}tbody tr:hover{background:var(--teal-l)}
+.tw{overflow-x:auto;border-radius:14px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:16px 0}
+.big{background:#fff;border-radius:18px;padding:18px;box-shadow:0 4px 18px #0001;border-top:5px solid var(--gold)}
+.big span{color:var(--mut);font-size:13px}.big b{display:block;font-size:30px;font-weight:700;color:var(--teal)}
+.bar{height:26px;border-radius:14px;background:var(--grey);overflow:hidden;margin:10px 0}.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--teal),#27b5be);border-radius:14px;transition:width 1.2s}
+.tl{position:relative;margin:20px 0;padding-inline-start:30px}.tl:before{content:"";position:absolute;inset-inline-start:9px;top:6px;bottom:6px;width:3px;background:var(--grey)}
+.ms{position:relative;padding:8px 0 14px}.ms:before{content:"";position:absolute;inset-inline-start:-30px;top:10px;width:21px;height:21px;border-radius:50%;background:#fff;border:3px solid var(--grey)}
+.ms.d:before{background:var(--teal);border-color:var(--teal)}.ms b{font-weight:600}.ms small{display:block;color:var(--mut)}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+.vcard{background:#fff;border-radius:18px;padding:20px;box-shadow:0 4px 18px #0001}.vcard h3{color:var(--teal);margin-bottom:8px}.vcard li{margin:6px 18px;line-height:1.7}
+.acc{font-size:24px;font-weight:700;letter-spacing:2px;direction:ltr;text-align:start;color:#555}
+/* splash */
+#splash{position:fixed;inset:0;z-index:2000;background:radial-gradient(circle at 70% 20%,#00a9b4,var(--teal-d) 60%,#00363b);color:#fff;display:grid;place-items:center;text-align:center;padding:24px;transition:opacity .8s,visibility .8s}
+#splash.out{opacity:0;visibility:hidden}
+#splash svg{width:150px;height:150px;animation:rot 30s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+#splash h1{font-size:clamp(34px,7vw,64px);font-weight:700;margin-top:10px}#splash p{font-weight:300;font-size:clamp(16px,3vw,22px);opacity:.9;margin:6px 0 24px}
+#splash .btn{background:var(--gold);color:#2b1d00;font-size:18px;padding:14px 36px}
+#splash .q{margin-top:28px;font-size:13px;font-weight:300;opacity:.75}
+/* edit form */
+.fm label{display:block;font-size:12px;color:var(--mut);margin-top:10px}
+.fm input,.fm select,.fm textarea{width:100%;border:1px solid #cfd8d9;border-radius:10px;padding:9px 10px;background:#fff}
+.fm textarea{min-height:70px}.fm .r{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.imgs{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}.imgs div{position:relative}.imgs img{width:64px;height:48px;object-fit:cover;border-radius:6px}.imgs button{position:absolute;top:-5px;inset-inline-start:-5px;background:#c0392b;color:#fff;border-radius:50%;width:18px;height:18px;font-size:12px}
+.toast{position:fixed;z-index:3000;top:20px;left:50%;transform:translateX(-50%);background:#00323a;color:#fff;padding:10px 20px;border-radius:24px;font-size:14px;opacity:0;transition:.3s;pointer-events:none}.toast.on{opacity:1}
+@media(max-width:700px){.stats{display:none}.brand b{font-size:15px}.chip{padding:6px 10px;font-size:13px}.top{inset-inline:8px}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="splash">
+  <div>
+    <svg viewBox="-60 -60 120 120" fill="none" stroke="#fff" stroke-width="1.2"><circle r="56" stroke-width="2"/><g opacity=".9"><rect x="-32" y="-32" width="64" height="64"/><rect x="-32" y="-32" width="64" height="64" transform="rotate(45)"/><circle r="32"/><circle r="18" stroke="#e4a22f" stroke-width="2"/><rect x="-23" y="-23" width="46" height="46" transform="rotate(22.5)" stroke="#e4a22f"/></g></svg>
+    <h1>مؤسسة تكافل الوقفية</h1>
+    <p>خريطة الأصول الوقفية · التقرير السنوي ٢٠٢٥</p>
+    <button class="btn" id="enter">ادخل إلى الخريطة</button>
+    <div class="q">الريادة في القطاع الوقفي عبر شراكة مجتمعية فاعلة وعمل مؤسسي متميز</div>
+  </div>
+</div>
+
+<div id="map" aria-label="خريطة الأصول الوقفية"></div>
+
+<header class="top">
+  <div class="brand"><svg viewBox="-60 -60 120 120" fill="none" stroke="#fff" stroke-width="3"><circle r="56"/><rect x="-32" y="-32" width="64" height="64"/><rect x="-32" y="-32" width="64" height="64" transform="rotate(45)"/><circle r="14" stroke="#e4a22f"/></svg><div><b>تكافل الوقفية</b><small>Takaful Endowment Foundation</small></div></div>
+  <nav class="chips" id="chips" aria-label="تصفية الأصول"></nav>
+</header>
+<aside class="stats" id="stats"></aside>
+<nav class="dock" id="dock">
+  <button data-v="map" class="on">الخريطة</button><button data-v="assets">جدول الأصول</button><button data-v="project">مشروع الصويحرة</button><button data-v="about">عن المؤسسة</button><button data-v="data">البيانات</button>
+</nav>
+
+<aside class="panel" id="panel" aria-live="polite"></aside>
+<section class="view" id="view"></section>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+/* ============ البيانات (محلية بالكامل) ============
+   كل القيم التي عليها demo:true تجريبية — عدّلها من زر "تعديل" داخل بطاقة المبنى.
+   الإحداثيات تقريبية: الصق إحداثيات جوجل ماب (أو رابط الموقع) في حقل الموقع وسيتحرك الدبوس مباشرة. */
+const KEY="takaful_platform_v1";
+const CATS={build:{n:"قائم",c:"#00909a"},cons:{n:"قيد الإنشاء",c:"#c9831a"},land:{n:"أراضي بيضاء",c:"#e4a22f"}};
+const DEFAULT={
+ assets:[
+ {id:1,name:"عقار وقفي - 1",cat:"build",type:"سكني تجاري",date:"2022-06-19",place:"الطريف - صحار",ll:[24.3720,56.7330],area:"—",units:8,rented:6,rent:1890,desc:"مبنى وقفي قائم في الطريف يضم وحدات سكنية وتجارية، ويسهم ريعه في دعم برامج فريق تكافل صحار التطوعي.",notes:"",imgs:[],demo:true},
+ {id:2,name:"عقار وقفي - 2",cat:"build",type:"تجاري",date:"2023-11-07",place:"بوشر - مسقط",ll:[23.5880,58.3830],area:"—",units:6,rented:5,rent:23385.6,desc:"أعلى الأصول عائداً في المحفظة، يقع في ولاية بوشر بمحافظة مسقط.",notes:"",imgs:[],demo:true},
+ {id:3,name:"عقار وقفي - 3",cat:"build",type:"سكني تجاري",date:"2022-09-21",place:"فلج القبائل - صحار",ll:[24.3050,56.6350],area:"—",units:10,rented:7,rent:1300,desc:"مبنى وقفي قائم في فلج القبائل.",notes:"",imgs:[],demo:true},
+ {id:4,name:"عقار وقفي - 4",cat:"build",type:"سكني تجاري",date:"2023-07-09",place:"الحجرة - صحار",ll:[24.3400,56.6600],area:"—",units:8,rented:7,rent:1800,desc:"مبنى وقفي قائم في منطقة الحجرة.",notes:"",imgs:[],demo:true},
+ {id:5,name:"عقار وقفي - 5",cat:"build",type:"سكني",date:"2023-04-26",place:"الملتقى - صحار",ll:[24.3700,56.7000],area:"—",units:12,rented:11,rent:7150,desc:"مبنى سكني قائم في الملتقى، ثاني أعلى الأصول إيراداً.",notes:"",imgs:[],demo:true},
+ {id:6,name:"عقار وقفي - 6",cat:"build",type:"سكني تجاري",date:"2023-12-20",place:"الحجرة - صحار",ll:[24.3450,56.6700],area:"—",units:6,rented:4,rent:1390,desc:"افتُتح في فبراير ٢٠٢٥ بتمويل كريم من شركة صحار ألمنيوم، ليبدأ دعم برامج المؤسسة وتنمية مواردها.",notes:"افتتاح فبراير ٢٠٢٥م — بدأ التأجير حديثاً.",imgs:[],demo:true},
+ {id:7,name:"عقار وقفي - 7 (وقف تكافل)",cat:"cons",type:"سكني تجاري",date:"2019-06-19",place:"الصويحرة - صحار",ll:[24.4300,56.7500],area:"—",units:0,rented:0,rent:0,desc:"المبنى الوقفي السابع «وقف تكافل» في الصويحرة. وُقّعت اتفاقية الإنشاء مع مؤسسة الكمالي للإنشاء في ٢٤ يونيو ٢٠٢٥م وبدأ الحفر في ٨ يوليو ٢٠٢٥م.",notes:"تابع نسبة الإنجاز من قسم «مشروع الصويحرة».",imgs:[],demo:true},
+ {id:8,name:"عقار وقفي - 8",cat:"land",type:"سكني تجاري",date:"2024-02-11",place:"الطريف - صحار",ll:[24.3680,56.7400],area:"—",units:0,rented:0,rent:0,desc:"أرض بيضاء مهيأة للتطوير في الطريف، اكتمل تصميم مشروعها ودراسة الجدوى الاقتصادية.",notes:"",imgs:[],demo:true},
+ {id:9,name:"عقار وقفي - 9",cat:"land",type:"سكني تجاري",date:"2024-06-10",place:"خبة الخميس - السويق",ll:[23.8500,57.4400],area:"—",units:0,rented:0,rent:0,desc:"أرض بيضاء في خبة الخميس بولاية السويق، فرصة للمساهمة في إطلاق مشروع وقفي جديد.",notes:"",imgs:[],demo:true},
+ {id:10,name:"عقار وقفي - 10",cat:"land",type:"سكني تجاري",date:"2025-10-21",place:"الهمبار الجديدة - صحار",ll:[24.3000,56.7500],area:"698 م²",units:0,rented:0,rent:0,desc:"أرض سكنية وتجارية بمساحة 698 م² تبرّع بها أحد فاعلي الخير في ٢ نوفمبر ٢٠٢٥م لدعم المشاريع الوقفية المستقبلية.",notes:"",imgs:[],demo:false}
+ ],
+ project:{name:"مشروع وقف تكافل - الصويحرة",contractor:"مؤسسة الكمالي للإنشاء",pct:12,total:350000,spent:42000,notes:"الجدول الزمني وفق الاعتماد، بالتنسيق مع الجهات المختصة.",demo:true,
+  ms:[{t:"توقيع اتفاقية الإنشاء",d:"24 يونيو 2025",done:1},{t:"بدء أعمال الحفر والإنشاء",d:"8 يوليو 2025",done:1},{t:"الأساسات",d:"",done:0},{t:"الهيكل الإنشائي",d:"",done:0},{t:"التشطيبات والخدمات",d:"",done:0},{t:"التسليم والتشغيل",d:"",done:0}]}
+};
+let S; try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){} if(!S||!S.assets)S=structuredClone(DEFAULT);
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast("تعذّر الحفظ (الصور كبيرة؟) — صدّر نسخة من قسم البيانات")}};
+const $=s=>document.querySelector(s),esc=t=>String(t??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt=n=>Number(n).toLocaleString("en-US",{maximumFractionDigits:1});
+const toast=m=>{const t=$("#toast");t.textContent=m;t.classList.add("on");setTimeout(()=>t.classList.remove("on"),2600)};
+
+/* ============ الخريطة ============ */
+const map=L.map("map",{zoomControl:false,center:[24.2,57.0],zoom:7,minZoom:6});
+const light=L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",{attribution:"© OpenStreetMap © CARTO",maxZoom:19}).addTo(map);
+const sat=L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{attribution:"Esri",maxZoom:19});
+L.control.layers({"خريطة":light,"قمر صناعي":sat},null,{position:"topleft"}).addTo(map);
+L.control.zoom({position:"topleft"}).addTo(map);
+let filter="all",markers={},cur=null;
+function pin(a){
+ const c=CATS[a.cat].c,land=a.cat==="land";
+ const shape=land?`<path d="M23 2 41 12v20L23 52 5 32V12z" fill="#fff3d6" stroke="${c}" stroke-width="3" stroke-dasharray="5 3"/>`:`<path d="M23 54C9 38 4 31 4 21a19 19 0 0 1 38 0c0 10-5 17-19 33z" fill="${c}"/><circle cx="23" cy="21" r="12" fill="#00000026"/>`;
+ return L.divIcon({className:"",iconSize:[46,56],iconAnchor:[23,54],html:`<div class="mk ${a.cat} ${land?"land":""}"><svg viewBox="0 0 46 56">${shape}</svg><span class="n">${land?"★":a.id}</span><span class="mkl">${land?"للاستثمار":esc(a.place.split(" - ")[0])}</span></div>`});
+}
+function draw(){
+ Object.values(markers).forEach(m=>m.remove());markers={};
+ S.assets.filter(a=>filter==="all"||a.cat===filter).forEach(a=>{
+  markers[a.id]=L.marker(a.ll,{icon:pin(a),title:a.name,keyboard:true}).addTo(map).on("click",()=>openAsset(a.id));
+ });
+ chips();stats();
+}
+function fit(){const p=S.assets.filter(a=>filter==="all"||a.cat===filter).map(a=>a.ll);if(p.length)map.flyToBounds(p,{padding:[90,90],maxZoom:11,duration:1.4})}
+function chips(){
+ const n=k=>S.assets.filter(a=>k==="all"||a.cat===k).length;
+ $("#chips").innerHTML=[["all","الكل","#2d3436"],...Object.entries(CATS).map(([k,v])=>[k,v.n,v.c])].map(([k,l,c])=>`<button class="chip" data-f="${k}" aria-pressed="${filter===k}"><i style="background:${c}"></i>${l}<em>${n(k)}</em></button>`).join("");
+}
+function stats(){
+ const rent=S.assets.reduce((s,a)=>s+(+a.rent||0),0),b=S.assets.filter(a=>a.cat==="build");
+ const u=b.reduce((s,a)=>s+(+a.units||0),0),r=b.reduce((s,a)=>s+(+a.rented||0),0);
+ $("#stats").innerHTML=`<div class="stat"><b>${S.assets.length}</b><span>أصول وقفية</span></div><div class="stat"><b>${fmt(rent)}</b><span>إيرادات الإيجارات ٢٠٢٥ (ر.ع)</span></div><div class="stat"><b>${u?Math.round(r/u*100):0}%</b><span>نسبة الإشغال (تقديرية)</span></div>`;
+}
+$("#chips").onclick=e=>{const b=e.target.closest("[data-f]");if(!b)return;filter=b.dataset.f;draw();closeP();fit()};
+
+/* ============ بطاقة الأصل ============ */
+const PH=(a)=>"data:image/svg+xml;utf8,"+encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 440 250'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='${CATS[a.cat].c}'/><stop offset='1' stop-color='#00363b'/></linearGradient></defs><rect width='440' height='250' fill='url(#g)'/><g fill='none' stroke='#fff' stroke-opacity='.18' stroke-width='2'><rect x='150' y='40' width='140' height='140'/><rect x='150' y='40' width='140' height='140' transform='rotate(45 220 110)'/><circle cx='220' cy='110' r='70'/></g></svg>`);
+let slideT;
+function openAsset(id,fly=true){
+ const a=S.assets.find(x=>x.id===id);if(!a)return;cur=id;
+ if(fly)map.flyTo(a.ll,Math.max(map.getZoom(),15),{duration:1.2});
+ const imgs=a.imgs.length?a.imgs:[PH(a)],c=CATS[a.cat];
+ let body="";
+ if(a.cat==="build"){
+  const v=Math.max(0,a.units-a.rented),p=a.units?Math.round(a.rented/a.units*100):0,C=2*Math.PI*42;
+  body=`<div class="sec"><h3>الإشغال</h3><div class="occ"><div class="ring"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" fill="none" stroke="#efefef" stroke-width="12"/><circle cx="50" cy="50" r="42" fill="none" stroke="#e4a22f" stroke-width="12" stroke-linecap="round" stroke-dasharray="${C*p/100} ${C}"/></svg><b>${p}%</b></div>
+  <div><div class="kv" style="margin-bottom:6px"><span>مؤجّرة</span><b>${a.rented} وحدة</b></div><div class="kv"><span>شاغرة</span><b>${v} وحدة</b></div></div></div>
+  <div class="units">${Array.from({length:a.units},(_,i)=>`<i class="u ${i<a.rented?"":"v"}" title="${i<a.rented?"مؤجرة":"شاغرة"}"></i>`).join("")}</div>
+  <div class="lg"><span><i style="background:var(--teal)"></i>مؤجرة</span><span><i style="border:2px dashed var(--gold)"></i>شاغرة</span></div></div>`;
+ }
+ if(a.cat==="cons")body=`<div class="sec"><button class="btn d" onclick="show('project')">تابع نسبة الإنجاز ←</button></div>`;
+ if(a.cat==="land")body=`<div class="sec promo"><h4>فرصة وقفية مفتوحة</h4><p>أرض بيضاء جاهزة لتتحول إلى مبنى وقفي يدرّ عائداً مستداماً لخدمة الأسر المستحقة. ساهم بالتمويل أو الشراكة لتكون صدقتك جارية.</p><button class="btn d" onclick="show('data','donate')">كيف أساهم؟</button></div>`;
+ $("#panel").innerHTML=`<div class="hero"><div class="sl" id="sl">${imgs.map(s=>`<img src="${esc(s)}" alt="${esc(a.name)}" onerror="this.src='${PH(a)}'">`).join("")}</div>
+ <button class="x" onclick="closeP()" aria-label="إغلاق">×</button>${imgs.length>1?`<div class="dots">${imgs.map((_,i)=>`<button data-i="${i}" class="${i?"":"on"}" aria-label="صورة ${i+1}"></button>`).join("")}</div>`:""}
+ <div class="t"><span class="tag ${a.cat}">${c.n}</span><h2>${esc(a.name)}</h2><p>${esc(a.place)}</p></div></div>
+ <div class="bd"><p class="about">${esc(a.desc)}</p>
+ <div class="sec"><h3>تفاصيل الأصل</h3><div class="grid"><div class="kv"><span>الفئة</span><b>${esc(a.type)}</b></div><div class="kv"><span>المساحة</span><b>${esc(a.area)}</b></div><div class="kv"><span>تاريخ الشراء / التبرع</span><b>${esc(a.date)}</b></div><div class="kv"><span>الملكية</span><b>مؤسسة تكافل</b></div>
+ ${a.cat==="build"?`<div class="kv"><span>إجمالي الوحدات</span><b>${a.units}</b></div><div class="kv"><span>إيرادات ٢٠٢٥</span><b>${fmt(a.rent)} ر.ع</b></div>`:""}</div></div>
+ ${body}
+ ${a.notes?`<div class="sec"><h3>ملاحظات</h3><div class="note">${esc(a.notes)}</div></div>`:""}
+ <div class="sec"><a class="btn g" target="_blank" rel="noopener" href="https://www.google.com/maps?q=${a.ll[0]},${a.ll[1]}">فتح في خرائط جوجل</a> <button class="btn g" onclick="editAsset(${a.id})">تعديل</button></div>
+ ${a.demo?`<p class="demo">* الأرقام والإحداثيات المعروضة تجريبية حتى يتم تعديلها.</p>`:""}</div>`;
+ $("#panel").classList.add("open");$("#panel").scrollTop=0;
+ const sl=$("#sl"),n=imgs.length;let i=0;clearInterval(slideT);
+ const go=k=>{i=k;sl.style.transform=`translateX(${i*100}%)`;document.querySelectorAll(".dots button").forEach((d,j)=>d.classList.toggle("on",j===i))};
+ document.querySelectorAll(".dots button").forEach(d=>d.onclick=()=>go(+d.dataset.i));
+ if(n>1)slideT=setInterval(()=>go((i+1)%n),4000);
+}
+function closeP(){$("#panel").classList.remove("open");clearInterval(slideT)}
+window.closeP=closeP;
+
+/* ============ تعديل (محلي) ============ */
+function parseLL(t){const m=String(t).match(/(-?\d{1,3}\.\d+)[\s,،;]+(-?\d{1,3}\.\d+)/);return m?[+m[1],+m[2]]:null}
+function editAsset(id){
+ const a=S.assets.find(x=>x.id===id),f=(k,l,t="text")=>`<label>${l}<input name="${k}" type="${t}" value="${esc(a[k])}"></label>`;
+ $("#panel").innerHTML=`<div class="bd fm"><button class="x" style="position:static" onclick="openAsset(${id},false)">×</button><h2 style="margin-top:10px">تعديل: ${esc(a.name)}</h2>
+ <form id="ef">${f("name","اسم الأصل")}
+ <label>الفئة<select name="cat">${Object.entries(CATS).map(([k,v])=>`<option value="${k}" ${a.cat===k?"selected":""}>${v.n}</option>`).join("")}</select></label>
+ <label>الموقع على الخريطة — الصق الإحداثيات (24.35, 56.71) أو رابط جوجل ماب<input name="ll" value="${a.ll.join(", ")}" dir="ltr"></label>
+ <div class="r">${f("place","المنطقة")}${f("type","نوع الأصل")}${f("area","المساحة")}${f("date","التاريخ")}${f("units","عدد الوحدات","number")}${f("rented","المؤجرة","number")}</div>${f("rent","إيرادات ٢٠٢٥ (ر.ع)","number")}
+ <label>وصف عام<textarea name="desc">${esc(a.desc)}</textarea></label><label>ملاحظات<textarea name="notes">${esc(a.notes)}</textarea></label>
+ <label>الصور (روابط، رابط في كل سطر)<textarea name="urls" dir="ltr">${a.imgs.filter(s=>!s.startsWith("data:")).join("\n")}</textarea></label>
+ <label>أو ارفع صوراً من جهازك<input type="file" id="up" accept="image/*" multiple></label><div class="imgs" id="ig">${a.imgs.filter(s=>s.startsWith("data:")).map((s,i)=>`<div><img src="${s}"><button type="button" data-d="${i}">×</button></div>`).join("")}</div>
+ <div class="sec"><button class="btn">حفظ</button> <button type="button" class="btn g" onclick="openAsset(${id},false)">إلغاء</button></div></form></div>`;
+ let ups=a.imgs.filter(s=>s.startsWith("data:"));
+ $("#ig").onclick=e=>{const b=e.target.closest("[data-d]");if(b){ups.splice(+b.dataset.d,1);b.parentElement.remove()}};
+ $("#up").onchange=e=>[...e.target.files].forEach(file=>{const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,900/im.width),c=document.createElement("canvas");c.width=im.width*k;c.height=im.height*k;c.getContext("2d").drawImage(im,0,0,c.width,c.height);const u=c.toDataURL("image/jpeg",.72);ups.push(u);$("#ig").insertAdjacentHTML("beforeend",`<div><img src="${u}"></div>`)};im.src=r.result};r.readAsDataURL(file)});
+ $("#ef").onsubmit=e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target));const ll=parseLL(d.ll);if(!ll){toast("الإحداثيات غير صحيحة");return}
+  Object.assign(a,{name:d.name,cat:d.cat,place:d.place,type:d.type,area:d.area,date:d.date,units:+d.units||0,rented:Math.min(+d.rented||0,+d.units||0),rent:+d.rent||0,desc:d.desc,notes:d.notes,ll,demo:false,imgs:[...d.urls.split("\n").map(s=>s.trim()).filter(Boolean),...ups]});
+  save();draw();openAsset(id);toast("تم الحفظ")};
+}
+window.editAsset=editAsset;window.openAsset=openAsset;
+
+/* ============ الأقسام ============ */
+const V=$("#view");
+function show(v,anchor){
+ document.querySelectorAll("#dock button").forEach(b=>b.classList.toggle("on",b.dataset.v===v));
+ if(v==="map"){V.classList.remove("open");return}
+ closeP();V.classList.add("open");V.scrollTop=0;V.innerHTML=`<div class="wrap">${views[v]()}</div>`;
+ if(v==="project")setTimeout(()=>{const b=$(".bar i");if(b)b.style.width=S.project.pct+"%"},80);
+ if(anchor)setTimeout(()=>document.getElementById(anchor)?.scrollIntoView({behavior:"smooth"}),100);
+}
+window.show=show;
+$("#dock").onclick=e=>{const b=e.target.closest("[data-v]");if(b)show(b.dataset.v)};
+const views={
+ assets(){return`<h1>جدول الأصول العقارية</h1><p class="sub">انقر على أي صف لعرضه على الخريطة</p><div class="tw"><table><thead><tr><th>م</th><th>اسم الأصل</th><th>الفئة</th><th>تاريخ الشراء/التبرع</th><th>الموقع</th><th>الحالة</th><th>الملكية</th></tr></thead><tbody>${S.assets.map(a=>`<tr onclick="show('map');openAsset(${a.id})"><td>${a.id}</td><td><b>${esc(a.name)}</b></td><td>${esc(a.type)}</td><td>${esc(a.date)}</td><td>${esc(a.place)}</td><td><span class="tag ${a.cat}">${a.cat==="build"?"مبنى قائم":a.cat==="cons"?"قيد الإنشاء":"أرض فضاء"}</span></td><td>مؤسسة تكافل</td></tr>`).join("")}</tbody></table></div>
+ <h2 style="margin:26px 0 10px;color:var(--teal)">إيرادات المشاريع الوقفية ٢٠٢٥ (ر.ع)</h2><div class="tw"><table><tbody>${S.assets.filter(a=>a.rent).map(a=>`<tr><td>إيجارات ${esc(a.name)} — ${esc(a.place)}</td><td><b>${fmt(a.rent)}</b></td></tr>`).join("")}<tr style="background:var(--teal-l)"><td><b>المجموع الكلي</b></td><td><b>${fmt(S.assets.reduce((s,a)=>s+(+a.rent||0),0))}</b></td></tr></tbody></table></div>`},
+ project(){const p=S.project,rem=p.total-p.spent;return`<h1>${esc(p.name)}</h1><p class="sub">المقاول: ${esc(p.contractor)} · بدء الحفر 8 يوليو 2025م</p>
+ <div class="big"><span>نسبة الإنجاز</span><b>${p.pct}%</b><div class="bar"><i style="width:0"></i></div></div>
+ <div class="cards"><div class="big"><span>إجمالي التكلفة (ر.ع)</span><b>${fmt(p.total)}</b></div><div class="big"><span>المصروف (ر.ع)</span><b>${fmt(p.spent)}</b></div><div class="big"><span>المتبقي (ر.ع)</span><b>${fmt(rem)}</b></div><div class="big"><span>نسبة الصرف</span><b>${p.total?Math.round(p.spent/p.total*100):0}%</b></div></div>
+ <div class="two"><div class="vcard"><h3>مراحل المشروع</h3><div class="tl">${p.ms.map(m=>`<div class="ms ${m.done?"d":""}"><b>${esc(m.t)}</b><small>${esc(m.d||(m.done?"منجز":"قادم"))}</small></div>`).join("")}</div></div>
+ <div class="vcard"><h3>ملاحظات</h3><p class="about">${esc(p.notes)}</p><p style="margin-top:12px"><button class="btn g" onclick="editProject()">تعديل بيانات المشروع</button> <button class="btn" onclick="show('map');openAsset(7)">على الخريطة</button></p>${p.demo?`<p class="demo">* النسب والمبالغ تجريبية حتى يتم تعديلها.</p>`:""}</div></div>`},
+ about(){return`<h1>مؤسسة تكافل الوقفية</h1><p class="sub">انطلقت في 22 ديسمبر 2022م تحت إشراف وزارة الأوقاف والشؤون الدينية، الذراع الاستثماري الرسمي لفريق تكافل صحار التطوعي</p>
+ <div class="two"><div class="vcard"><h3>رؤيتنا</h3><p class="about">الريادة في القطاع الوقفي عبر شراكة مجتمعية فاعلة وعمل مؤسسي متميز.</p></div><div class="vcard"><h3>مهمتنا</h3><p class="about">بناء منظومة مستدامة للعمل الخيري من خلال استثمار الوقف وتعزيز ثقافته في المجتمع.</p></div>
+ <div class="vcard"><h3>قيمنا</h3><ul><li>التميز والابتكار</li><li>الاحترافية والحوكمة</li><li>النزاهة والأمانة</li><li>النماء والاستدامة</li></ul></div>
+ <div class="vcard"><h3>أبرز منجزات ٢٠٢٥</h3><ul><li>افتتاح المبنى الوقفي (6) في فلج القبائل — فبراير</li><li>توقيع 3 اتفاقيات شراكة استراتيجية</li><li>توقيع إنشاء المبنى السابع في الصويحرة — 24 يونيو</li><li>المشاركة في الملتقى الوقفي الثالث — 13 أكتوبر</li><li>تبرع بأرض 698 م² في الهمبار الجديدة — 2 نوفمبر</li></ul></div>
+ <div class="vcard"><h3>مجلس الإدارة</h3><ul><li>م. عبدالمنعم المرشدي — الرئيس</li><li>هلال الشيراوي — نائب الرئيس</li><li>محمود العويني · حافظ الربيعي · عبدالقادر الفارسي</li><li>د. خالد العلوي · جمعة البكاري · ميساء المقبالية (أمين السر)</li></ul></div>
+ <div class="vcard"><h3>الأهداف الاستراتيجية</h3><ul><li>الإدارة المؤسسية والحوكمة</li><li>تنمية الموارد الوقفية والاستثمار</li><li>الدعم المستقبلي للفريق التطوعي</li><li>التحول الرقمي</li><li>الشراكات والمجتمع</li><li>الاستدامة والتطوير</li></ul></div></div>`},
+ data(){return`<h1>المساهمة والبيانات</h1><p class="sub">ساهم في وقف جديد، وأدر بيانات المنصة محلياً</p>
+ <div class="two" id="donate"><div class="vcard"><h3>حساب مؤسسة تكافل الوقفية</h3><p style="color:var(--mut)">بنك صحار الإسلامي</p><div class="acc">70301001433401</div></div><div class="vcard"><h3>حساب فريق تكافل صحار التطوعي</h3><p style="color:var(--mut)">بنك مسقط</p><div class="acc">0343006473670074</div></div>
+ <div class="vcard"><h3>إدارة البيانات</h3><p class="about">كل التعديلات تُحفظ في متصفحك فقط. صدّر نسخة لنقلها لجهاز آخر.</p><p style="margin-top:10px"><button class="btn" onclick="expo()">تصدير JSON</button> <label class="btn g">استيراد<input type="file" id="imp" accept=".json" hidden></label> <button class="btn g" onclick="rst()">استعادة الأصل</button></p></div></div>`}
+};
+function editProject(){
+ const p=S.project;V.innerHTML=`<div class="wrap fm vcard"><h2>تعديل بيانات المشروع</h2><form id="pf"><div class="r"><label>نسبة الإنجاز %<input name="pct" type="number" min="0" max="100" value="${p.pct}"></label><label>إجمالي التكلفة<input name="total" type="number" value="${p.total}"></label><label>المصروف<input name="spent" type="number" value="${p.spent}"></label><label>المقاول<input name="contractor" value="${esc(p.contractor)}"></label></div>
+ <label>ملاحظات<textarea name="notes">${esc(p.notes)}</textarea></label><label>المراحل المنجزة</label>${p.ms.map((m,i)=>`<label style="color:var(--ink);font-size:15px"><input type="checkbox" name="m${i}" ${m.done?"checked":""} style="width:auto"> ${esc(m.t)} <input name="d${i}" value="${esc(m.d)}" placeholder="التاريخ" style="width:140px;display:inline"></label>`).join("")}
+ <div class="sec"><button class="btn">حفظ</button> <button type="button" class="btn g" onclick="show('project')">إلغاء</button></div></form></div>`;
+ $("#pf").onsubmit=e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target));Object.assign(p,{pct:Math.min(100,+d.pct||0),total:+d.total||0,spent:+d.spent||0,contractor:d.contractor,notes:d.notes,demo:false});p.ms.forEach((m,i)=>{m.done=d["m"+i]?1:0;m.d=d["d"+i]});save();show("project")}
+}
+window.editProject=editProject;
+window.expo=()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(S,null,1)],{type:"application/json"}));a.download="takaful-data.json";a.click()};
+window.rst=()=>{if(confirm("استعادة البيانات الأصلية؟ ستُحذف تعديلاتك.")){S=structuredClone(DEFAULT);save();draw();show("map");toast("تمت الاستعادة")}};
+document.addEventListener("change",e=>{if(e.target.id==="imp"){const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result);if(!j.assets)throw 0;S=j;save();draw();show("map");toast("تم الاستيراد")}catch(x){toast("ملف غير صالح")}};r.readAsText(e.target.files[0])}});
+
+/* ============ البداية ============ */
+draw();
+$("#enter").onclick=()=>{$("#splash").classList.add("out");setTimeout(fit,500)};
+addEventListener("keydown",e=>{if(e.key==="Escape"){closeP();show("map")}});
+</script>
+</body>
+</html>
